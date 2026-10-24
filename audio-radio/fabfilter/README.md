@@ -1,6 +1,6 @@
 # Voix radio — FabFilter, Pro-C 3 et deux Pro-MB
 
-Script pour REAPER 7 sous Windows. Il prépare une **nouvelle piste** sans modifier la piste ni le routage existants. Cible : voix parlée proche, dense et claire, avec des graves contrôlés. Ce n'est pas le preset d'Inoxtag, ni une garantie de reproduire sa voix ou son mix.
+**Version 2** — Script pour REAPER 7 sous Windows. Il prépare une **nouvelle piste** sans modifier la piste ni le routage existants. Cible : voix parlée proche, dense et claire, avec des graves contrôlés. Ce n'est pas le preset d'Inoxtag, ni une garantie de reproduire sa voix ou son mix.
 
 ## Lancer le script
 
@@ -30,9 +30,9 @@ La sécurité de sortie est un petit JSFX fourni dans le script, installé dans 
 
 ## Vérification automatique et rapport
 
-Le script demande le preset usine de chaque nouvelle instance. Il recherche les paramètres par leur nom, puis utilise leurs valeurs affichées pour trouver les positions des contrôles : il ne suppose pas que telle fréquence correspond à un indice ou une position fixe. Les valeurs appliquées sont relues. Un preset usine indisponible, un plugin absent ou un paramètre requis non reconnu bloque la validation.
+Le script tente de charger le preset usine de chaque nouvelle instance. Certains VST3, dont le Pro-Q 4 du rapport reçu, ne l’exposent pas via cette API REAPER : ce refus est maintenant informatif et ne bloque plus la configuration explicite. Les bandes EQ sont activées en stéréo, leurs modes dynamiques/spectraux et solos sont désactivés, le gain automatique est coupé et la balance est centrée. Il recherche les paramètres par leur nom, puis utilise leurs valeurs affichées pour trouver les positions des contrôles : il ne suppose pas que telle fréquence correspond à un indice ou une position fixe. Les valeurs appliquées sont relues. Un plugin absent ou un paramètre requis non reconnu bloque la validation. Les choix à positions discrètes sont vérifiés selon leur libellé final ; les valeurs numériques sont relues dans leur unité. Les autres plugins sont quand même chargés pour enrichir le rapport si l’un manque.
 
-Il écrit `Rapport_FabFilter.txt` à côté du script et dans la console REAPER. **Si la configuration est incomplète, tous les effets restent bypassés et la piste reste muette.** Envoyer ce fichier dans la conversation permettra d'adapter les correspondances exactes à la version installée, sans captures ni envoi des VST3. Le rapport contient les noms et valeurs des paramètres ; en cas d'erreur, il peut aussi contenir le chemin local du script.
+Il écrit `Rapport_FabFilter.txt` à côté du script et dans la console REAPER, avec le numéro de version et des exemples de valeurs affichées pour chaque paramètre. **Si la configuration est incomplète, tous les effets restent bypassés et la piste reste muette.** Envoyer ce fichier dans la conversation permettra d'adapter les correspondances exactes à la version installée, sans captures ni envoi des VST3. Le rapport contient les noms et valeurs des paramètres ; en cas d'erreur, il peut aussi contenir le chemin local du script.
 
 Ne pas activer une chaîne partiellement configurée sans vérifier ses réglages. Si le JSFX nouvellement installé est introuvable, relancer REAPER, supprimer la piste d'essai incomplète et relancer le script. Chaque exécution crée une piste supplémentaire.
 
@@ -51,6 +51,8 @@ Comparer à volume d'écoute égal. Ne pas empiler cette chaîne avec le traitem
 
 ## Ce qui a été vérifié ici
 
-Syntaxe/exécution Lua et trois scénarios avec une API REAPER simulée : succès, plugin absent, mode de phase absent. Les tests vérifient le recours à **Pro-C 3**, le second Pro-MB en **Minimum Phase**, la conservation de la piste d'origine et les mises en sécurité.
+Syntaxe/exécution Lua et cinq scénarios avec une API REAPER simulée : succès, plugin absent, mode de phase absent, preset usine non exposé et paramètres à positions discrètes. Les noms des contrôles Pro-Q 4 supplémentaires viennent du rapport fourni. Les tests sont dans `tests/test_installer.py` et nécessitent le paquet Python `lupa` (`python tests/test_installer.py`). Les tests vérifient le recours à **Pro-C 3**, le second Pro-MB en **Minimum Phase**, la conservation de la piste d'origine et les mises en sécurité.
 
 **Aucune exécution dans REAPER ni dans les FabFilter réels, aucune validation auditive de cette nouvelle chaîne.** Leurs noms de paramètres peuvent différer des correspondances prévues : le rapport sert précisément à résoudre cela. Aucun WAV rendu avec cette chaîne n'est fourni. Les WAV et mesures du dossier parent concernent uniquement la première version JSFX, pas cette version FabFilter.
+
+Pour remplacer la première version : retélécharger le `.lua` et remplacer le fichier chargé dans REAPER, puis relancer l’action. Le titre du message doit afficher **v2**. La précédente piste d’essai incomplète peut être supprimée ; conserver la piste micro d’origine.

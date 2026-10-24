@@ -1,4 +1,4 @@
--- REAPER 7 / Lua. Builds a separate, initially muted and disarmed track.
+-- Version 2. REAPER 7 / Lua. Builds a separate, initially muted and disarmed track.
 -- No original track, item, hardware route or plugin instance is modified.
 -- Parameter discovery uses names and the plugin's displayed values, never assumed indices.
 local r = reaper
@@ -8,6 +8,7 @@ local report, errors = {}, {}
 local track, indices
 local function log(s) report[#report+1] = s end
 local function problem(s) errors[#errors+1]=s; log('NON APPLIQUE : '..s) end
+log('INSTALLATEUR RADIO FABFILTER - VERSION 2')
 local function norm(s)
   return (s:lower():gsub('[^%w]', ''))
 end
@@ -31,10 +32,10 @@ local function formatted(fx,p,v)
   local ok,s=r.TrackFX_FormatParamValueNormalized(track,fx,p,v,'')
   return ok and s or ''
 end
-local function apply(fx,p,v,label)
+local function apply(fx,p,v,label,allow_quantized)
   r.TrackFX_SetParamNormalized(track,fx,p,v)
   local got=r.TrackFX_GetParamNormalized(track,fx,p)
-  if math.abs(got-v)>0.002 then problem(label..' : ecriture non conservee');return false end
+  if not allow_quantized and math.abs(got-v)>0.002 then problem(label..' : ecriture non conservee');return false end
   log(label..' = '..formatted(fx,p,got))
   return true
 end
@@ -55,7 +56,7 @@ local function value(fx,names,target,tolerance,optional)
     end
   end
   if err>(tolerance or .15) then problem(label..' : cible '..target..' hors correspondance fiable');return false end
-  if not apply(fx,p,best,label) then return false end
+  if not apply(fx,p,best,label,true) then return false end
   local n=dbnum(formatted(fx,p,r.TrackFX_GetParamNormalized(track,fx,p)))
   if not n or math.abs(n-target)>(tolerance or .15) then problem(label..' : lecture finale differente');return false end
   return true
@@ -66,7 +67,13 @@ local function choice(fx,names,wanted,optional)
   for _,w in ipairs(wanted) do
     for i=0,256 do
       local v=i/256
-      if norm(formatted(fx,p,v))==norm(w) then return apply(fx,p,v,label) end
+      if norm(formatted(fx,p,v))==norm(w) then
+        if not apply(fx,p,v,label,true) then return false end
+        if norm(formatted(fx,p,r.TrackFX_GetParamNormalized(track,fx,p)))~=norm(w) then
+          problem(label..' : option relue differente');return false
+        end
+        return true
+      end
     end
   end
   problem(label..' : option '..table.concat(wanted,' | ')..' introuvable');return false
@@ -87,12 +94,15 @@ local function used(fx,b,on)
 end
 local function add(name)
   local fx=r.TrackFX_AddByName(track,name,false,-1)
-  if fx<0 then error('Plugin introuvable : '..name) end
+  if fx<0 then problem('Plugin introuvable : '..name);return nil end
   r.TrackFX_SetEnabled(track,fx,false)
-  -- REAPER API: -1 requests the factory preset, avoiding a custom user default.
+  -- VST3 plugins need not expose their internal factory presets to REAPER.
+  -- A failed host preset request is not evidence that the plugin cannot work.
   if not r.TrackFX_SetPresetByIndex(track,fx,-1) then
-    error('Impossible de charger le preset usine : '..name)
+    log('INFO : preset usine non expose a REAPER : '..name..
+        '. Configuration explicite de la nouvelle instance.')
   end
+  r.TrackFX_SetEnabled(track,fx,false)
   return fx
 end
 local safety=[=[desc:RMixed - Securite radio (1 ms)
@@ -144,12 +154,31 @@ local function build()
   local m1=add('VST3: Pro-MB (FabFilter)')
   local m2=add('VST3: Pro-MB (FabFilter)')
   local lim=add('JS: RMixed/RadioSafety.jsfx')
+  if not (q and gate and c and m1 and m2 and lim) then
+    -- All six load attempts have happened, so the final inventory remains useful.
+    return
+  end
   indices={q,gate,c,m1,m2,lim}
+  for _,fx in ipairs(indices) do
+    -- Neutralize common plugin controls explicitly when exposed.
+    flag(fx,'Bypass',false,true)
+    flag(fx,'Host Bypass',false,true)
+    flag(fx,{'External Side Chain','External Sidechain'},false,true)
+    flag(fx,{'Audition','Side Chain Audition'},false,true)
+    flag(fx,'Output Invert Phase',false,true)
+    r.TrackFX_SetEnabled(track,fx,false)
+  end
   -- Static voice EQ, minimum/zero-latency phase. No fabricated preset blob.
   log('\nPRO-Q 4')
   choice(q,{'Processing Mode','Processing'},{'Zero Latency'})
   value(q,{'Output Gain','Output Level'},8)
-  value(q,'Gain Scale',100,1,true)
+  value(q,'Gain Scale',100,1)
+  flag(q,'Auto Gain',false)
+  choice(q,'Character',{'Clean'})
+  -- The report confirms these actual Pro-Q 4 parameter names.
+  local pan,panlabel=named(q,'Output Pan')
+  if pan then apply(q,pan,.5,panlabel) end
+  choice(q,'Output Pan Mode',{'Left/Right'})
   for b=1,24 do used(q,b,false) end
   local bands={
     {type={'Low Cut','High Pass'},freq=65,q=.707,slope={'12 dB/oct','12 dB/octave','12 dB'}},
@@ -159,11 +188,20 @@ local function build()
     {type={'High Shelf'},freq=8000,q=.707,gain=1.5}
   }
   for b,s in ipairs(bands) do
-    used(q,b,true);bc(q,b,{'Shape','Type'},s.type)
+    used(q,b,true)
+    flag(q,bandnames(b,'Enabled'),true)
+    bc(q,b,{'Shape','Type'},s.type)
+    bc(q,b,'Stereo Placement',{'Stereo'})
+    bc(q,b,'Speakers',{'All (excl. LFE)'})
+    flag(q,bandnames(b,'Solo'),false)
+    flag(q,bandnames(b,'Side Chain Audition'),false)
+    flag(q,bandnames(b,'External Side Chain'),false)
+    flag(q,bandnames(b,'Spectral Enabled'),false)
+    flag(q,bandnames(b,{'Dynamics Enabled','Dynamic Enabled'}),false)
+    bv(q,b,'Dynamic Range',0,.1)
     bv(q,b,{'Frequency','Freq'},s.freq,math.max(1,s.freq*.015));bv(q,b,'Q',s.q,.06)
     if s.gain then bv(q,b,'Gain',s.gain,.1) end
     if s.slope then bc(q,b,'Slope',s.slope) end
-    flag(q,bandnames(b,'Dynamic Enabled'),false,true)
   end
   log('\nPRO-G : expansion douce, pas de gate brutal')
   choice(gate,'Style',{'Vocal','Clean'})
@@ -186,6 +224,9 @@ local function build()
   for _,fx in ipairs({m1,m2}) do
     for b=1,6 do used(fx,b,false) end
     used(fx,1,true)
+    flag(fx,bandnames(1,'Enabled'),true,true)
+    flag(fx,bandnames(1,'Solo'),false,true)
+    flag(fx,bandnames(1,'Side Chain Audition'),false,true)
     bc(fx,1,{'Dynamics Mode','Mode'},{'Compress','Compression'})
     bv(fx,1,{'Output','Output Gain','Gain'},0,.1)
     value(fx,{'Output Gain','Output Level'},0,.1)
@@ -235,6 +276,14 @@ if track then
       local _,name=r.TrackFX_GetParamName(track,fx,p,'')
       local v=r.TrackFX_GetParamNormalized(track,fx,p)
       log(string.format('%d | %s | %.6f | %s',p,name,v,formatted(fx,p,v)))
+      -- Endpoint/midpoint labels help resolve enum/unit differences in one report.
+      if name~='MIDI CC' and name~='Internal' then
+        local samples={}
+        for _,nv in ipairs({0,.25,.5,.75,1}) do
+          samples[#samples+1]=string.format('%.2f=%s',nv,formatted(fx,p,nv))
+        end
+        log('  VALEURS : '..table.concat(samples,' ; '))
+      end
     end
   end
 end
@@ -253,4 +302,4 @@ if #errors==0 then
 else
   msg='La configuration automatique n\'est pas complete. La nouvelle piste reste mutee et les FX bypasses. Ta piste originale est intacte.\n\nEnvoie Rapport_FabFilter.txt dans la conversation : il contient les vrais noms des parametres, sans licence. Aucune capture necessaire.\n\nRapport : '..path
 end
-r.ShowMessageBox(msg,'Voix radio FabFilter',0)
+r.ShowMessageBox(msg,'Voix radio FabFilter - v2',0)
