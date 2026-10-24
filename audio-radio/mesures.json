@@ -1,0 +1,10 @@
+{
+  "sample_rate": 48000,
+  "duration_s": 11.321333333333333,
+  "input_peak_dBFS": -14.457887523658496,
+  "output_peak_dBFS": -1.8443354699620997,
+  "output_RMS_dBFS": -18.621338950487882,
+  "oversampled_peak_dBFS": -1.8308758624161126,
+  "max_compression_dB": 7.568768529905819,
+  "safety_clipped_samples": 0.0
+}

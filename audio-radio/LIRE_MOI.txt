@@ -1,0 +1,61 @@
+VOIX RADIO — proposition pour l'extrait fourni
+
+CONTENU
+Voix_RADIO.wav : rendu traité, mono 48 kHz.
+Voix_RADIO_comparaison_volume_egal.wav : même traitement, RMS global aligné sur l'original pour comparaison.
+Voix_ORIGINALE.wav : copie inchangée du fichier fourni.
+Voix_RADIO.jsfx : processeur pour REAPER, sans plugin payant.
+Voix_RADIO.RfxChain : chaîne à importer.
+Voix_RADIO.rpp : projet indépendant contenant l'original et le processeur.
+
+INSTALLATION
+1. Décompresser tout le ZIP dans un dossier.
+2. Dans REAPER : Options > Show REAPER resource path in explorer/finder.
+3. Copier Voix_RADIO.jsfx dans le sous-dossier Effects de ce répertoire.
+4. Ouvrir Voix_RADIO.rpp. Si l'effet est introuvable, relancer REAPER.
+5. Lire le projet : le traitement s'applique à l'original, pas au WAV déjà traité.
+Alternative : dans la fenêtre FX d'une piste vide, importer Voix_RADIO.RfxChain.
+Ne pas cumuler cette chaîne avec la chaîne FabFilter existante pour le premier essai.
+Le projet original n'a pas été modifié ; son routage Discord/OBS n'est pas repris.
+
+UTILISATION LIVE
+Choisir l'entrée MONO du microphone sur la piste. Pour un essai live, muter
+l'item audio de démonstration, armer la piste et activer le monitoring.
+Utiliser un casque. Commencer avec un buffer de 128 échantillons à 48 kHz ;
+64 si la machine le supporte. La latence totale dépend du pilote et de l'interface.
+L'effet ne comporte ni lookahead, ni FFT, ni délai ajouté ; la charge CPU et
+le fonctionnement dans REAPER restent à tester sur la machine utilisateur.
+Le processeur additionne les entrées gauche/droite en mono : réservé à la voix.
+
+REGLAGES INITIAUX
+Gain d'entrée +8 dB, passe-haut 65 Hz, grave +2 dB à 125 Hz,
+cloche -3 dB à 330 Hz (Q=1), présence +3 dB à 2800 Hz (Q=0,8),
+aigus +1,5 dB à 8000 Hz.
+Expandeur doux : seuil -46 dB après EQ, atténuation maximale 12 dB.
+Compression : seuil -25 dB, ratio 3,5:1, knee 6 dB,
+attaque 5 ms, relâchement 100 ms, détection de crête lissée.
+De-esser simple : séparation 4800 Hz, seuil -37 dB après compression,
+réduction plafonnée à 5 dB. Ce n'est pas une isolation parfaite des sifflantes.
+Sortie +12 dB ; écrêteur de secours à -1 dBFS, sans garantie true-peak.
+Sur le fichier fourni, cet écrêteur ne s'active pas.
+
+AJUSTEMENTS A L'ECOUTE
+Trop sourd/bourdonnant : Corps de +2 vers 0 dB.
+Trop mordant : Présence de +3 vers +1 dB.
+Sifflantes agressives : seuil de-esser de -37 vers -40 dB.
+Respirations trop présentes : réduire le gain d'entrée de 2 dB et réécouter.
+Fins de mots atténuées : seuil expandeur de -46 vers -52 dB.
+Distorsion sur une voix plus forte : baisser gain d'entrée et/ou sortie.
+La chaîne ne corrige pas un écrêtage déjà enregistré au microphone.
+Elle renforce le corps sans changer la hauteur de la voix.
+
+VALIDATION ET LIMITES
+Analyse de 11,32 secondes uniquement. Rendu calculé en Python avec les mêmes
+formules causales que le JSFX ; ce n'est pas un export effectué dans REAPER.
+Mesures du WAV final via FFmpeg : -18,94 LUFS intégrés, -1,83 dBTP.
+Réduction de compression maximale : 7,57 dB. Aucun échantillon écrêté.
+Le JSFX et le projet n'ont pas été exécutés dans REAPER dans cet environnement.
+Pas de validation auditive effectuée ici : proposition technique à auditionner,
+pas une garantie de résultat subjectif ni de stabilité sur votre interface.
+Si l'enregistrement fourni comportait déjà des effets, ils sont conservés :
+pour un calibrage définitif, utiliser aussi une prise réellement sans effets.
